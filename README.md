@@ -177,8 +177,17 @@ public interface IMyEndpoint
 
 To create a `AuthenticationTokenHandler`, you provide an `IAuthenticationTokenProvider`.
 
+There is an implementation of `IAuthenticationTokenProvider` that receives the different delegates as parameters but you can create your own implementation.
+
 ```csharp
-var authenticationTokenProvider = new MyAuthenticationTokenProvider();
+var authenticationService = new AuthenticationService();
+
+var authenticationTokenProvider = new AuthenticationTokenProvider<MyAuthenticationToken>(
+  getToken: (ct, request) => authenticationService.GetToken(ct, request),
+  notifySessionExpired: (ct, request, token) => authenticationService.NotifySessionExpired(ct, request, token),
+  refreshToken: (ct, request, token) => authenticationService.RefreshToken(ct, request, token)  // Optional
+);
+
 var authenticationHandler = new AuthenticationTokenHandler<MyAuthenticationToken>(authenticationTokenProvider);
 
 public class MyAuthenticationToken : IAuthenticationToken
@@ -190,7 +199,7 @@ public class MyAuthenticationToken : IAuthenticationToken
   public bool CanBeRefreshed => RefreshToken != null; // Whether or not the access token can be refreshed.
 }
 
-public class MyAuthenticationTokenProvider : IAuthenticationTokenProvider<MyAuthenticationToken>
+public class MyAuthenticationService
 {
   public Task<MyAuthenticationToken> GetToken(CancellationToken ct, HttpRequestMessage request)
   {
