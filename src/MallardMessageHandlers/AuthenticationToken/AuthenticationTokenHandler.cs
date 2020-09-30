@@ -50,6 +50,8 @@ namespace MallardMessageHandlers
 			if (!ShouldIncludeToken(request))
 			{
 				// Request doesn't require an authentication token.
+				_logger.LogDebug($"The request '{request.RequestUri}' doesn't require an authentication token.");
+
 				return await base.SendAsync(request, ct);
 			}
 
@@ -65,6 +67,8 @@ namespace MallardMessageHandlers
 
 			if (!token.CanBeRefreshed)
 			{
+				_logger.LogError($"The request '{request.RequestUri}' was unauthorized and the token '{token}' cannot be refreshed. Considering the session has expired.");
+
 				// Request was unauthorized and we cannot refresh the authentication token.
 				await _tokenProvider.NotifySessionExpired(ct, request, token);
 
@@ -75,6 +79,8 @@ namespace MallardMessageHandlers
 
 			if (refreshedToken == null)
 			{
+				_logger.LogError($"The request '{request.RequestUri}' was unauthorized and the token '{token}' could not be refreshed. Considering the session has expired.");
+
 				// No authentication token to use.
 				await _tokenProvider.NotifySessionExpired(ct, request, token);
 
@@ -85,6 +91,8 @@ namespace MallardMessageHandlers
 
 			if (IsUnauthorized(request, response))
 			{
+				_logger.LogError($"The request '{request.RequestUri}' was unauthorized, the token '{token}' was refreshed to '{refreshedToken}' but the request was still unauthorized. Considering the session has expired.");
+
 				// Request was still unauthorized and we cannot refresh the authentication token.
 				await _tokenProvider.NotifySessionExpired(ct, request, refreshedToken);
 
@@ -151,14 +159,14 @@ namespace MallardMessageHandlers
 			// longer the current token because another refresh request was made.
 			var currentToken = await _tokenProvider.GetToken(ct, request);
 
-			_logger.LogDebug($"Current token is: '{currentToken}'.");
+			_logger.LogDebug($"The current token is: '{currentToken}'.");
 
 			// If we don't have an authentication data or a refresh token, we cannot refresh the access token.
 			// This can happen if the session has expired while 2 concurrent refresh requests were made.
 			// The second request will not have a refresh token.
 			if (currentToken == null || !currentToken.CanBeRefreshed)
 			{
-				_logger.LogWarning($"The refresh token is null. The token cannot be refreshed.");
+				_logger.LogWarning($"The refresh token is null or cannot be refreshed.");
 
 				return default;
 			}
@@ -184,9 +192,7 @@ namespace MallardMessageHandlers
 			}
 			catch (Exception e)
 			{
-				_logger.LogError(e, $"Failed to refresh token: '{unauthorizedToken}'. Considering the session has expired.");
-
-				await _tokenProvider.NotifySessionExpired(ct, request, currentToken);
+				_logger.LogError(e, $"Failed to refresh token: '{unauthorizedToken}'.");
 
 				return default;
 			}
