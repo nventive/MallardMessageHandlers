@@ -149,11 +149,27 @@ namespace MallardMessageHandlers
 
 			_logger.LogDebug($"Requesting refresh for token: '{unauthorizedToken}'.");
 
+			// Wait for the semaphore.
 			await _semaphore.WaitAsync(ct);
 
 			// From this moment, the operation cannot be cancelled.
-			ct = CancellationToken.None;
+			var refreshedToken = await GetRefreshedAuthenticationToken(
+				CancellationToken.None,
+				request,
+				unauthorizedToken
+			);
 
+			// Release the semaphore.
+			_semaphore.Release();
+
+			return refreshedToken;
+		}
+
+		private async Task<TAuthenticationToken> GetRefreshedAuthenticationToken(
+			CancellationToken ct,
+			HttpRequestMessage request,
+			TAuthenticationToken unauthorizedToken)
+		{
 			// We get the current authentication token inside the lock
 			// as it's very possible that the unauthorized token is no
 			// longer the current token because another refresh request was made.
