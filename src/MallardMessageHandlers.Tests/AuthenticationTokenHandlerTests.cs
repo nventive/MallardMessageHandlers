@@ -404,6 +404,122 @@ namespace MallardMessageHandlers.Tests
 			httpClient.Should().NotBeNull();
 		}
 
+		[Fact]
+		public async Task It_NotifiesSessionExpired_If_Refreshed_And_Unauthorized_MultipeTimes()
+		{
+			var sessionExpired = false;
+			var authenticationToken = new TestToken("AccessToken1", "RefreshToken1");
+			var refreshedAuthenticationToken = new TestToken("AccessToken2", "RefreshToken2");
+			var authorizationHeaders = new List<AuthenticationHeaderValue>();
+
+			Task<TestToken> GetToken(CancellationToken ct, HttpRequestMessage request)
+				=> Task.FromResult(authenticationToken);
+
+			Task<TestToken> RefreshToken(CancellationToken ct, HttpRequestMessage request, TestToken token)
+				=> Task.FromResult(refreshedAuthenticationToken);
+
+			Task SessionExpired(CancellationToken ct, HttpRequestMessage request, TestToken token)
+			{
+				sessionExpired = true;
+
+				return Task.CompletedTask;
+			}
+
+			void BuildServices(IServiceCollection s) => s
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(new AuthenticationTokenProvider<TestToken>(GetToken, SessionExpired, RefreshToken))
+				.AddTransient<AuthenticationTokenHandler<TestToken>>()
+				.AddTransient(_ => new TestHandler((r, ct) =>
+				{
+					authorizationHeaders.Add(r.Headers.Authorization);
+
+					var isUnauthorized = r.Headers.Authorization.Parameter == authenticationToken.AccessToken;
+
+					return Task.FromResult(new HttpResponseMessage(isUnauthorized ? HttpStatusCode.Unauthorized : HttpStatusCode.Unauthorized));
+				}));
+
+			void BuildHttpClient(IHttpClientBuilder h) => h
+				.AddHttpMessageHandler<AuthenticationTokenHandler<TestToken>>()
+				.AddHttpMessageHandler<TestHandler>();
+
+			var httpClient = HttpClientTestsHelper.GetTestHttpClient(BuildServices, BuildHttpClient);
+
+			// First time logged in.
+			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
+
+			// First time execute Get with unauthorized authentication token.
+			await httpClient.GetAsync(DefaultRequestUri);
+
+			authorizationHeaders.Count.Should().Be(2);
+			sessionExpired.Should().BeTrue();
+
+			// Second time logged in.
+			sessionExpired = false;
+			authorizationHeaders.Clear();
+			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
+
+			// Second time execute Get with unauthorized authentication token.
+			await httpClient.GetAsync(DefaultRequestUri);
+
+			authorizationHeaders.Count.Should().Be(2);
+			sessionExpired.Should().BeTrue();
+		}
+
+		[Fact]
+		public async Task It_NotifiesSessionExpired_If_Refresh_Throws_MultipleTimes()
+		{
+			var sessionExpired = false;
+			var refreshedToken = false;
+			var authenticationToken = new TestToken("AccessToken1", "RefreshToken1");
+
+			Task<TestToken> GetToken(CancellationToken ct, HttpRequestMessage request)
+				=> Task.FromResult(authenticationToken);
+
+			Task<TestToken> RefreshToken(CancellationToken ct, HttpRequestMessage request, TestToken token)
+			{
+				refreshedToken = true;
+
+				throw new TestException();
+			}
+
+			Task SessionExpired(CancellationToken ct, HttpRequestMessage request, TestToken token)
+			{
+				sessionExpired = true;
+
+				return Task.CompletedTask;
+			}
+
+			void BuildServices(IServiceCollection s) => s
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(new AuthenticationTokenProvider<TestToken>(GetToken, SessionExpired, RefreshToken))
+				.AddTransient<AuthenticationTokenHandler<TestToken>>()
+				.AddTransient(_ => new TestHandler((r, ct) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized))));
+
+			void BuildHttpClient(IHttpClientBuilder h) => h
+				.AddHttpMessageHandler<AuthenticationTokenHandler<TestToken>>()
+				.AddHttpMessageHandler<TestHandler>();
+
+			var httpClient = HttpClientTestsHelper.GetTestHttpClient(BuildServices, BuildHttpClient);
+
+			// First time logged in.
+			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
+
+			// First time execute Get with unauthorized authentication token.
+			await httpClient.GetAsync(DefaultRequestUri);
+
+			refreshedToken.Should().BeTrue();
+			sessionExpired.Should().BeTrue();
+
+			// Second time logged in.
+			sessionExpired = false;
+			refreshedToken = false;
+			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
+
+			// Second time execute Get with unauthorized authentication token.
+			await httpClient.GetAsync(DefaultRequestUri);
+
+			refreshedToken.Should().BeTrue();
+			sessionExpired.Should().BeTrue();
+		}
+
 		public class AuthenticationClient
 		{
 			public AuthenticationClient(HttpClient client) { }
