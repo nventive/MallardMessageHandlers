@@ -26,7 +26,7 @@ namespace MallardMessageHandlers
 		where TAuthenticationToken : IAuthenticationToken
 	{
 		private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1);
-		private static string _previousToken = default;
+		private static string _lastExpiredToken = default;
 
 		private readonly IAuthenticationTokenProvider<TAuthenticationToken> _tokenProvider;
 		private readonly ILogger _logger;
@@ -71,7 +71,7 @@ namespace MallardMessageHandlers
 				_logger.LogError($"The request '{request.RequestUri}' was unauthorized and the token '{token}' cannot be refreshed. Considering the session has expired.");
 
 				// Request was unauthorized and we cannot refresh the authentication token.
-				await NotifySessionExpired(ct, request, token);
+				await TryNotifySessionExpired(ct, request, token);
 
 				return response;
 			}
@@ -83,7 +83,7 @@ namespace MallardMessageHandlers
 				_logger.LogError($"The request '{request.RequestUri}' was unauthorized and the token '{token}' could not be refreshed. Considering the session has expired.");
 
 				// No authentication token to use.
-				await NotifySessionExpired(ct, request, token);
+				await TryNotifySessionExpired(ct, request, token);
 
 				return response;
 			}
@@ -95,19 +95,19 @@ namespace MallardMessageHandlers
 				_logger.LogError($"The request '{request.RequestUri}' was unauthorized, the token '{token}' was refreshed to '{refreshedToken}' but the request was still unauthorized. Considering the session has expired.");
 
 				// Request was still unauthorized and we cannot refresh the authentication token.
-				await NotifySessionExpired(ct, request, refreshedToken);
+				await TryNotifySessionExpired(ct, request, refreshedToken);
 
 				return response;
 			}
 
 			return response;
 
-			async Task NotifySessionExpired(CancellationToken ct2, HttpRequestMessage innerRequest, TAuthenticationToken innerToken)
+			async Task TryNotifySessionExpired(CancellationToken ct2, HttpRequestMessage innerRequest, TAuthenticationToken innerToken)
 			{
 				// Make sure that we notify that the session has been expired only once per TAutenticationToken.
-				if (!innerToken.AccessToken.Equals(_previousToken))
+				if (!innerToken.AccessToken.Equals(_lastExpiredToken))
 				{
-					_previousToken = innerToken.AccessToken;
+					_lastExpiredToken = innerToken.AccessToken;
 					await _tokenProvider.NotifySessionExpired(ct2, innerRequest, innerToken);
 				}
 			}
