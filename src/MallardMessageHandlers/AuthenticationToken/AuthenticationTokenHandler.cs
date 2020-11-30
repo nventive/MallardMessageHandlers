@@ -25,8 +25,9 @@ namespace MallardMessageHandlers
 	public class AuthenticationTokenHandler<TAuthenticationToken> : DelegatingHandler
 		where TAuthenticationToken : IAuthenticationToken
 	{
+		private static readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1);
+
 		private readonly IAuthenticationTokenProvider<TAuthenticationToken> _tokenProvider;
-		private readonly SemaphoreSlim _semaphore;
 		private readonly ILogger _logger;
 
 		/// <summary>
@@ -41,7 +42,6 @@ namespace MallardMessageHandlers
 		{
 			_tokenProvider = tokenProvider ?? throw new ArgumentNullException(nameof(tokenProvider));
 			_logger = logger ?? NullLogger<AuthenticationTokenHandler<TAuthenticationToken>>.Instance;
-			_semaphore = new SemaphoreSlim(1);
 		}
 
 		/// <inheritdoc/>
