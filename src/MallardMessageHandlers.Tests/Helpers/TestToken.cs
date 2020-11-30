@@ -9,16 +9,19 @@ namespace MallardMessageHandlers.Tests
 {
 	public class TestToken : IAuthenticationToken
 	{
-		public TestToken(string accessToken, string refreshToken = null)
+		public TestToken(string id, bool generateRefreshToken = false)
 		{
-			AccessToken = accessToken;
-			RefreshToken = refreshToken;
+			Id = id;
+			AccessToken = Guid.NewGuid().ToString().Substring(0, 10);
+			RefreshToken = generateRefreshToken ? Guid.NewGuid().ToString().Substring(0, 10) : string.Empty;
 		}
+
+		public string Id { get; set; }
 
 		public string AccessToken { get; set; }
 
 		public string RefreshToken { get; set; }
 
-		public bool CanBeRefreshed => RefreshToken != null;
+		public bool CanBeRefreshed => !string.IsNullOrEmpty(RefreshToken);
 	}
 }

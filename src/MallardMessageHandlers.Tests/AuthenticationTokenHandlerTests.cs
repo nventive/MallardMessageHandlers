@@ -123,8 +123,8 @@ namespace MallardMessageHandlers.Tests
 		public async Task It_Doesnt_RefreshToken_If_Authorized()
 		{
 			var refreshedToken = false;
-			var authenticationToken = new TestToken("AccessToken1", "RefreshToken1");
-			var refreshedAuthenticationToken = new TestToken("AccessToken2", "RefreshToken2");
+			var authenticationToken = new TestToken("AccessToken1", generateRefreshToken: true);
+			var refreshedAuthenticationToken = new TestToken("AccessToken2", generateRefreshToken: true);
 
 			Task<TestToken> GetToken(CancellationToken ct, HttpRequestMessage request)
 				=> Task.FromResult(authenticationToken);
@@ -160,8 +160,8 @@ namespace MallardMessageHandlers.Tests
 		[Fact]
 		public async Task It_Retries_With_RefreshedToken()
 		{
-			var authenticationToken = new TestToken("AccessToken1", "RefreshToken1");
-			var refreshedAuthenticationToken = new TestToken("AccessToken2", "RefreshToken2");
+			var authenticationToken = new TestToken("AccessToken1", generateRefreshToken: true);
+			var refreshedAuthenticationToken = new TestToken("AccessToken2", generateRefreshToken: true);
 			var authorizationHeaders = new List<AuthenticationHeaderValue>();
 
 			Task<TestToken> GetToken(CancellationToken ct, HttpRequestMessage request)
@@ -239,7 +239,7 @@ namespace MallardMessageHandlers.Tests
 		{
 			var sessionExpired = false;
 			var refreshedToken = false;
-			var authenticationToken = new TestToken("AccessToken1", "RefreshToken1");
+			var authenticationToken = new TestToken("AccessToken1", generateRefreshToken: true);
 
 			Task<TestToken> GetToken(CancellationToken ct, HttpRequestMessage request)
 				=> Task.FromResult(authenticationToken);
@@ -281,8 +281,8 @@ namespace MallardMessageHandlers.Tests
 		public async Task It_NotifiesSessionExpired_If_Refreshed_And_Unauthorized()
 		{
 			var sessionExpired = false;
-			var authenticationToken = new TestToken("AccessToken1", "RefreshToken1");
-			var refreshedAuthenticationToken = new TestToken("AccessToken2", "RefreshToken2");
+			var authenticationToken = new TestToken("AccessToken1", generateRefreshToken: true);
+			var refreshedAuthenticationToken = new TestToken("AccessToken2", generateRefreshToken: true);
 			var authorizationHeaders = new List<AuthenticationHeaderValue>();
 
 			Task<TestToken> GetToken(CancellationToken ct, HttpRequestMessage request)
@@ -329,7 +329,7 @@ namespace MallardMessageHandlers.Tests
 		{
 			var sessionExpired = false;
 			var refreshedToken = false;
-			var authenticationToken = new TestToken("AccessToken1", "RefreshToken1");
+			var authenticationToken = new TestToken("AccessToken1", generateRefreshToken: true);
 
 			Task<TestToken> GetToken(CancellationToken ct, HttpRequestMessage request)
 				=> Task.FromResult(authenticationToken);
@@ -408,15 +408,17 @@ namespace MallardMessageHandlers.Tests
 		public async Task It_NotifiesSessionExpired_If_Refreshed_And_Unauthorized_MultipeTimes()
 		{
 			var sessionExpired = false;
-			var authenticationToken = new TestToken("AccessToken1", "RefreshToken1");
-			var refreshedAuthenticationToken = new TestToken("AccessToken2", "RefreshToken2");
+			var IsFirstRequestDone = false;
+
+			var firstAuthenticationToken = new TestToken("AccessToken1", generateRefreshToken: true);
+			var secondAuthenticationToken = new TestToken("AccessToken2", generateRefreshToken: true);
 			var authorizationHeaders = new List<AuthenticationHeaderValue>();
 
 			Task<TestToken> GetToken(CancellationToken ct, HttpRequestMessage request)
-				=> Task.FromResult(authenticationToken);
+				=> Task.FromResult(IsFirstRequestDone ? secondAuthenticationToken : firstAuthenticationToken);
 
 			Task<TestToken> RefreshToken(CancellationToken ct, HttpRequestMessage request, TestToken token)
-				=> Task.FromResult(refreshedAuthenticationToken);
+				=> Task.FromResult(default(TestToken));
 
 			Task SessionExpired(CancellationToken ct, HttpRequestMessage request, TestToken token)
 			{
@@ -432,9 +434,7 @@ namespace MallardMessageHandlers.Tests
 				{
 					authorizationHeaders.Add(r.Headers.Authorization);
 
-					var isUnauthorized = r.Headers.Authorization.Parameter == authenticationToken.AccessToken;
-
-					return Task.FromResult(new HttpResponseMessage(isUnauthorized ? HttpStatusCode.Unauthorized : HttpStatusCode.Unauthorized));
+					return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized));
 				}));
 
 			void BuildHttpClient(IHttpClientBuilder h) => h
@@ -449,10 +449,11 @@ namespace MallardMessageHandlers.Tests
 			// First time execute Get with unauthorized authentication token.
 			await httpClient.GetAsync(DefaultRequestUri);
 
-			authorizationHeaders.Count.Should().Be(2);
+			authorizationHeaders.Count.Should().Be(1);
 			sessionExpired.Should().BeTrue();
 
 			// Second time logged in.
+			IsFirstRequestDone = true;
 			sessionExpired = false;
 			authorizationHeaders.Clear();
 			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
@@ -460,7 +461,7 @@ namespace MallardMessageHandlers.Tests
 			// Second time execute Get with unauthorized authentication token.
 			await httpClient.GetAsync(DefaultRequestUri);
 
-			authorizationHeaders.Count.Should().Be(2);
+			authorizationHeaders.Count.Should().Be(1);
 			sessionExpired.Should().BeTrue();
 		}
 
@@ -469,10 +470,13 @@ namespace MallardMessageHandlers.Tests
 		{
 			var sessionExpired = false;
 			var refreshedToken = false;
-			var authenticationToken = new TestToken("AccessToken1", "RefreshToken1");
+			var IsFirstRequestDone = false;
+
+			var firstAuthenticationToken = new TestToken("AccessToken1", generateRefreshToken: true);
+			var secondAuthenticationToken = new TestToken("AccessToken2", generateRefreshToken: true);
 
 			Task<TestToken> GetToken(CancellationToken ct, HttpRequestMessage request)
-				=> Task.FromResult(authenticationToken);
+				=> Task.FromResult(IsFirstRequestDone ? secondAuthenticationToken : firstAuthenticationToken);
 
 			Task<TestToken> RefreshToken(CancellationToken ct, HttpRequestMessage request, TestToken token)
 			{
@@ -510,6 +514,7 @@ namespace MallardMessageHandlers.Tests
 
 			// Second time logged in.
 			sessionExpired = false;
+			IsFirstRequestDone = true;
 			refreshedToken = false;
 			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
 
@@ -523,8 +528,8 @@ namespace MallardMessageHandlers.Tests
 		[Fact]
 		public async Task It_Handle_MultipleUnauthorizedRequest()
 		{
-			var authenticationToken = new TestToken("AccessToken1", "RefreshToken1");
-			var refreshedAuthenticationToken = new TestToken("AccessToken2", "RefreshToken2");
+			var authenticationToken = new TestToken("AccessToken1", generateRefreshToken: true);
+			var refreshedAuthenticationToken = new TestToken("AccessToken2", generateRefreshToken: true);
 			var authorizationHeaders = new List<AuthenticationHeaderValue>();
 
 			var hasNotRefreshed = true;
@@ -589,8 +594,8 @@ namespace MallardMessageHandlers.Tests
 		[Fact]
 		public async Task It_Handle_MultipleUnauthorizedRequest_With_DifferentEndpoints()
 		{
-			var authenticationToken = new TestToken("AccessToken1", "RefreshToken1");
-			var refreshedAuthenticationToken = new TestToken("AccessToken2", "RefreshToken2");
+			var authenticationToken = new TestToken("AccessToken1", generateRefreshToken: true);
+			var refreshedAuthenticationToken = new TestToken("AccessToken2", generateRefreshToken: true);
 			var authorizationHeaders = new List<AuthenticationHeaderValue>();
 
 			var hasNotRefreshed = true;
@@ -651,6 +656,108 @@ namespace MallardMessageHandlers.Tests
 				// request with new token.
 				authorizationHeaders.ElementAt(2 + i).Parameter.Should().Be(refreshedAuthenticationToken.AccessToken);
 			}
+		}
+
+		[Fact]
+		public async Task It_NotifiesSessionExpiredOnce_If_Refresh_Throws_MultipleTimesConcurrently()
+		{
+			var sessionExpired = false;
+			var refreshedToken = false;
+			var authenticationToken = new TestToken("AccessToken1", generateRefreshToken: true);
+
+			var sessionExpiredCount = 0;
+
+			Task<TestToken> GetToken(CancellationToken ct, HttpRequestMessage request)
+				=> Task.FromResult(authenticationToken);
+
+			Task<TestToken> RefreshToken(CancellationToken ct, HttpRequestMessage request, TestToken token)
+			{
+				refreshedToken = true;
+
+				throw new TestException();
+			}
+
+			Task SessionExpired(CancellationToken ct, HttpRequestMessage request, TestToken token)
+			{
+				sessionExpired = true;
+				sessionExpiredCount++;
+
+				return Task.CompletedTask;
+			}
+
+			void BuildServices(IServiceCollection s) => s
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(new AuthenticationTokenProvider<TestToken>(GetToken, SessionExpired, RefreshToken))
+				.AddTransient<AuthenticationTokenHandler<TestToken>>()
+				.AddTransient(_ => new TestHandler((r, ct) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized))));
+
+			void BuildHttpClient(IHttpClientBuilder h) => h
+				.AddHttpMessageHandler<AuthenticationTokenHandler<TestToken>>()
+				.AddHttpMessageHandler<TestHandler>();
+
+			var httpClient = HttpClientTestsHelper.GetTestHttpClient(BuildServices, BuildHttpClient);
+
+			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
+
+			await Task.WhenAll(
+				httpClient.GetAsync(DefaultRequestUri),
+				httpClient.GetAsync(DefaultRequestUri)
+			);
+
+			refreshedToken.Should().BeTrue();
+			sessionExpired.Should().BeTrue();
+			sessionExpiredCount.Should().Be(1);
+		}
+
+		[Fact]
+		public async Task It_NotifiesSessionExpiredOnce_If_Refresh_Throws_MultipleTimesConcurrently_With_DifferentEndpoints()
+		{
+			var sessionExpired = false;
+			var refreshedToken = false;
+			var authenticationToken = new TestToken("AccessToken1", generateRefreshToken: true);
+
+			var sessionExpiredCount = 0;
+
+			Task<TestToken> GetToken(CancellationToken ct, HttpRequestMessage request)
+				=> Task.FromResult(authenticationToken);
+
+			Task<TestToken> RefreshToken(CancellationToken ct, HttpRequestMessage request, TestToken token)
+			{
+				refreshedToken = true;
+
+				throw new TestException();
+			}
+
+			Task SessionExpired(CancellationToken ct, HttpRequestMessage request, TestToken token)
+			{
+				sessionExpired = true;
+				sessionExpiredCount++;
+
+				return Task.CompletedTask;
+			}
+
+			void BuildServices(IServiceCollection s) => s
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(new AuthenticationTokenProvider<TestToken>(GetToken, SessionExpired, RefreshToken))
+				.AddTransient<AuthenticationTokenHandler<TestToken>>()
+				.AddTransient(_ => new TestHandler((r, ct) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized))));
+
+			void BuildHttpClient(IHttpClientBuilder h) => h
+				.AddHttpMessageHandler<AuthenticationTokenHandler<TestToken>>()
+				.AddHttpMessageHandler<TestHandler>();
+
+			var httpClient = HttpClientTestsHelper.GetTestHttpClient(BuildServices, BuildHttpClient);
+			var httpClient2 = HttpClientTestsHelper.GetTestHttpClient(BuildServices, BuildHttpClient);
+
+			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
+			httpClient2.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
+
+			await Task.WhenAll(
+				httpClient.GetAsync(DefaultRequestUri),
+				httpClient2.GetAsync(DefaultRequestUri)
+			);
+
+			refreshedToken.Should().BeTrue();
+			sessionExpired.Should().BeTrue();
+			sessionExpiredCount.Should().Be(1);
 		}
 
 		public class AuthenticationClient
