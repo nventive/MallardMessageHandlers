@@ -224,6 +224,9 @@ You would generally register the `AuthenticationTokenHandler` on your `IServiceP
 ```csharp
 private void ConfigureAuthenticationTokenHandler(IServiceCollection services)
 {
+  // The AuthenticationTokenHandlerContext must be shared for all HttpRequests, so we add it as singleton.
+  services.AddSingleton<AuthenticationTokenHandlerContext>();
+
   // The AuthenticationTokenProvider must be shared for all HttpRequests so we add it as singleton.
   services.AddSingleton<IAuthenticationTokenProvider<MyAuthenticationToken>, MyAuthenticationTokenProvider>();
 
