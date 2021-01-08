@@ -26,22 +26,24 @@ namespace MallardMessageHandlers
 		where TAuthenticationToken : IAuthenticationToken
 	{
 		private readonly IAuthenticationTokenProvider<TAuthenticationToken> _tokenProvider;
-		private readonly SemaphoreSlim _semaphore;
 		private readonly ILogger _logger;
+		private readonly AuthenticationTokenHandlerContext _context;
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="AuthenticationTokenHandler{TAuthenticationToken}"/> class.
 		/// </summary>
 		/// <param name="tokenProvider"><see cref="IAuthenticationTokenProvider{TAuthenticationToken}"/></param>
 		/// <param name="logger"><see cref="ILogger"/></param>
+		/// <param name="context"><see cref="AuthenticationTokenHandlerContext"/></param>
 		public AuthenticationTokenHandler(
 			IAuthenticationTokenProvider<TAuthenticationToken> tokenProvider,
-			ILogger<AuthenticationTokenHandler<TAuthenticationToken>> logger
+			ILogger<AuthenticationTokenHandler<TAuthenticationToken>> logger,
+			AuthenticationTokenHandlerContext context = null
 		)
 		{
 			_tokenProvider = tokenProvider ?? throw new ArgumentNullException(nameof(tokenProvider));
 			_logger = logger ?? NullLogger<AuthenticationTokenHandler<TAuthenticationToken>>.Instance;
-			_semaphore = new SemaphoreSlim(1);
+			_context = context ?? new AuthenticationTokenHandlerContext();
 		}
 
 		/// <inheritdoc/>
@@ -70,7 +72,7 @@ namespace MallardMessageHandlers
 				_logger.LogError($"The request '{request.RequestUri}' was unauthorized and the token '{token}' cannot be refreshed. Considering the session has expired.");
 
 				// Request was unauthorized and we cannot refresh the authentication token.
-				await _tokenProvider.NotifySessionExpired(ct, request, token);
+				await NotifySessionExpired(ct, request, token);
 
 				return response;
 			}
@@ -82,7 +84,7 @@ namespace MallardMessageHandlers
 				_logger.LogError($"The request '{request.RequestUri}' was unauthorized and the token '{token}' could not be refreshed. Considering the session has expired.");
 
 				// No authentication token to use.
-				await _tokenProvider.NotifySessionExpired(ct, request, token);
+				await NotifySessionExpired(ct, request, token);
 
 				return response;
 			}
@@ -94,12 +96,22 @@ namespace MallardMessageHandlers
 				_logger.LogError($"The request '{request.RequestUri}' was unauthorized, the token '{token}' was refreshed to '{refreshedToken}' but the request was still unauthorized. Considering the session has expired.");
 
 				// Request was still unauthorized and we cannot refresh the authentication token.
-				await _tokenProvider.NotifySessionExpired(ct, request, refreshedToken);
+				await NotifySessionExpired(ct, request, refreshedToken);
 
 				return response;
 			}
 
 			return response;
+
+			async Task NotifySessionExpired(CancellationToken ct2, HttpRequestMessage innerRequest, TAuthenticationToken innerToken)
+			{
+				// Make sure that we notify that the session has been expired only once per TAutenticationToken.
+				if (!innerToken.AccessToken.Equals(_context.LastExpiredToken))
+				{
+					_context.LastExpiredToken = innerToken.AccessToken;
+					await _tokenProvider.NotifySessionExpired(ct2, innerRequest, innerToken);
+				}
+			}
 		}
 
 		/// <summary>
@@ -150,7 +162,7 @@ namespace MallardMessageHandlers
 			_logger.LogDebug($"Requesting refresh for token: '{unauthorizedToken}'.");
 
 			// Wait for the semaphore.
-			await _semaphore.WaitAsync(ct);
+			await _context.RefreshSemaphore.WaitAsync(ct);
 
 			try
 			{
@@ -162,7 +174,7 @@ namespace MallardMessageHandlers
 			finally
 			{
 				// Release the semaphore.
-				_semaphore.Release();
+				_context.RefreshSemaphore.Release();
 			}
 
 			async Task<TAuthenticationToken> GetRefreshedAuthenticationToken(CancellationToken ct2)
