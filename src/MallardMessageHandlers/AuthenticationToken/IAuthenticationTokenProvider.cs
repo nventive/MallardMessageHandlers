@@ -7,6 +7,12 @@ using System.Threading.Tasks;
 
 namespace MallardMessageHandlers
 {
+	/// <summary>
+	/// An <see cref="IAuthenticationTokenProvider{TAuthenticationToken}"/> owns the authentication token.
+	/// Typically that would be your application's AuthenticationService.
+	/// We strongly suggest you use <see cref="ConcurrentAuthenticationTokenProvider{TAuthenticationToken}"/> so that you don't need to deal with concurrency handling in your application code.
+	/// </summary>
+	/// <typeparam name="TAuthenticationToken">The type of authentication token.</typeparam>
 	public interface IAuthenticationTokenProvider<TAuthenticationToken>
 		where TAuthenticationToken : IAuthenticationToken
 	{

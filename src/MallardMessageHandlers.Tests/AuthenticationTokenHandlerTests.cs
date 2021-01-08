@@ -11,6 +11,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using MallardMessageHandlers;
 using Xunit;
+using Microsoft.Extensions.Logging;
 
 namespace MallardMessageHandlers.Tests
 {
@@ -31,7 +32,7 @@ namespace MallardMessageHandlers.Tests
 				=> Task.CompletedTask;
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(new AuthenticationTokenProvider<TestToken>(GetToken, SessionExpired))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) =>
 				{
@@ -65,7 +66,7 @@ namespace MallardMessageHandlers.Tests
 				=> Task.CompletedTask;
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(new AuthenticationTokenProvider<TestToken>(GetToken, SessionExpired))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) =>
 				{
@@ -104,7 +105,7 @@ namespace MallardMessageHandlers.Tests
 				=> Task.CompletedTask;
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(new AuthenticationTokenProvider<TestToken>(GetToken, SessionExpired))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) => Task.FromResult(new HttpResponseMessage())));
 
@@ -140,7 +141,7 @@ namespace MallardMessageHandlers.Tests
 			}
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(new AuthenticationTokenProvider<TestToken>(GetToken, SessionExpired, RefreshToken))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) => Task.FromResult(new HttpResponseMessage())));
 
@@ -174,7 +175,7 @@ namespace MallardMessageHandlers.Tests
 				=> Task.FromResult(refreshedAuthenticationToken);
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(new AuthenticationTokenProvider<TestToken>(GetToken, SessionExpired, RefreshToken))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) =>
 				{
@@ -217,7 +218,7 @@ namespace MallardMessageHandlers.Tests
 			}
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(new AuthenticationTokenProvider<TestToken>(GetToken, notifySessionExpired: SessionExpired))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized))));
 
@@ -259,7 +260,7 @@ namespace MallardMessageHandlers.Tests
 			}
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(new AuthenticationTokenProvider<TestToken>(GetToken, SessionExpired, RefreshToken))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized))));
 
@@ -299,7 +300,7 @@ namespace MallardMessageHandlers.Tests
 			}
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(new AuthenticationTokenProvider<TestToken>(GetToken, SessionExpired, RefreshToken))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) =>
 				{
@@ -349,7 +350,7 @@ namespace MallardMessageHandlers.Tests
 			}
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(new AuthenticationTokenProvider<TestToken>(GetToken, SessionExpired, RefreshToken))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized))));
 
@@ -372,12 +373,13 @@ namespace MallardMessageHandlers.Tests
 		{
 			// The following circular reference is tested here:
 			// AuthenticationTokenHandler -> IAuthenticationTokenProvider
-			// AuthenticationTokenProvider -> AuthenticationClient
+			// IAuthenticationTokenProvider -> AuthenticationClient
 			// AuthenticationClient -> AuthenticationTokenHandler
 
 			void BuildServices(IServiceCollection s) => s
 				// IAuthenticationTokenProvider is AuthenticationTokenProvider which depends on AuthenticationClient
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new AuthenticationTokenProvider<TestToken>(
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(
+					sp.GetService<ILoggerFactory>(),
 					(ct, r) => sp.GetRequiredService<AuthenticationClient>().GetToken(ct, r),
 					(ct, r, t) => Task.CompletedTask
 				))
@@ -408,15 +410,17 @@ namespace MallardMessageHandlers.Tests
 		public async Task It_NotifiesSessionExpired_If_Refreshed_And_Unauthorized_MultipeTimes()
 		{
 			var sessionExpired = false;
-			var authenticationToken = new TestToken("AccessToken1", "RefreshToken1");
-			var refreshedAuthenticationToken = new TestToken("AccessToken2", "RefreshToken2");
+			var IsFirstRequestDone = false;
+
+			var firstAuthenticationToken = new TestToken("AccessToken1", "RefreshToken1");
+			var secondAuthenticationToken = new TestToken("AccessToken2", "RefreshToken2");
 			var authorizationHeaders = new List<AuthenticationHeaderValue>();
 
 			Task<TestToken> GetToken(CancellationToken ct, HttpRequestMessage request)
-				=> Task.FromResult(authenticationToken);
+				=> Task.FromResult(IsFirstRequestDone ? secondAuthenticationToken : firstAuthenticationToken);
 
 			Task<TestToken> RefreshToken(CancellationToken ct, HttpRequestMessage request, TestToken token)
-				=> Task.FromResult(refreshedAuthenticationToken);
+				=> Task.FromResult(default(TestToken));
 
 			Task SessionExpired(CancellationToken ct, HttpRequestMessage request, TestToken token)
 			{
@@ -426,15 +430,13 @@ namespace MallardMessageHandlers.Tests
 			}
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(new AuthenticationTokenProvider<TestToken>(GetToken, SessionExpired, RefreshToken))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) =>
 				{
 					authorizationHeaders.Add(r.Headers.Authorization);
 
-					var isUnauthorized = r.Headers.Authorization.Parameter == authenticationToken.AccessToken;
-
-					return Task.FromResult(new HttpResponseMessage(isUnauthorized ? HttpStatusCode.Unauthorized : HttpStatusCode.Unauthorized));
+					return Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized));
 				}));
 
 			void BuildHttpClient(IHttpClientBuilder h) => h
@@ -449,10 +451,11 @@ namespace MallardMessageHandlers.Tests
 			// First time execute Get with unauthorized authentication token.
 			await httpClient.GetAsync(DefaultRequestUri);
 
-			authorizationHeaders.Count.Should().Be(2);
+			authorizationHeaders.Count.Should().Be(1);
 			sessionExpired.Should().BeTrue();
 
 			// Second time logged in.
+			IsFirstRequestDone = true;
 			sessionExpired = false;
 			authorizationHeaders.Clear();
 			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
@@ -460,7 +463,7 @@ namespace MallardMessageHandlers.Tests
 			// Second time execute Get with unauthorized authentication token.
 			await httpClient.GetAsync(DefaultRequestUri);
 
-			authorizationHeaders.Count.Should().Be(2);
+			authorizationHeaders.Count.Should().Be(1);
 			sessionExpired.Should().BeTrue();
 		}
 
@@ -469,10 +472,13 @@ namespace MallardMessageHandlers.Tests
 		{
 			var sessionExpired = false;
 			var refreshedToken = false;
-			var authenticationToken = new TestToken("AccessToken1", "RefreshToken1");
+			var IsFirstRequestDone = false;
+
+			var firstAuthenticationToken = new TestToken("AccessToken1", "RefreshToken1");
+			var secondAuthenticationToken = new TestToken("AccessToken2", "RefreshToken2");
 
 			Task<TestToken> GetToken(CancellationToken ct, HttpRequestMessage request)
-				=> Task.FromResult(authenticationToken);
+				=> Task.FromResult(IsFirstRequestDone ? secondAuthenticationToken : firstAuthenticationToken);
 
 			Task<TestToken> RefreshToken(CancellationToken ct, HttpRequestMessage request, TestToken token)
 			{
@@ -489,7 +495,7 @@ namespace MallardMessageHandlers.Tests
 			}
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(new AuthenticationTokenProvider<TestToken>(GetToken, SessionExpired, RefreshToken))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized))));
 
@@ -510,6 +516,7 @@ namespace MallardMessageHandlers.Tests
 
 			// Second time logged in.
 			sessionExpired = false;
+			IsFirstRequestDone = true;
 			refreshedToken = false;
 			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
 
@@ -518,6 +525,237 @@ namespace MallardMessageHandlers.Tests
 
 			refreshedToken.Should().BeTrue();
 			sessionExpired.Should().BeTrue();
+		}
+
+		[Fact]
+		public async Task It_Handle_MultipleUnauthorizedRequest()
+		{
+			var authenticationToken = new TestToken("AccessToken1", "RefreshToken1");
+			var refreshedAuthenticationToken = new TestToken("AccessToken2", "RefreshToken2");
+			var authorizationHeaders = new List<AuthenticationHeaderValue>();
+
+			var hasNotRefreshed = true;
+			TestToken currentRefreshToken = null;
+
+			async Task<TestToken> GetToken(CancellationToken ct, HttpRequestMessage request)
+			{
+				await Task.Delay(50);
+				return hasNotRefreshed ? authenticationToken : currentRefreshToken;
+			}
+
+			Task SessionExpired(CancellationToken ct, HttpRequestMessage request, TestToken unauthorizedToken)
+				=> Task.CompletedTask;
+
+			Task<TestToken> RefreshToken(CancellationToken ct, HttpRequestMessage request, TestToken token)
+			{
+				currentRefreshToken = hasNotRefreshed ? refreshedAuthenticationToken : null;
+				hasNotRefreshed = false;
+				return Task.FromResult(currentRefreshToken);
+			}
+
+			void BuildServices(IServiceCollection s) => s
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
+				.AddTransient<AuthenticationTokenHandler<TestToken>>()
+				.AddTransient(_ => new TestHandler((r, ct) =>
+				{
+					authorizationHeaders.Add(r.Headers.Authorization);
+
+					var isUnauthorized = r.Headers.Authorization.Parameter != null && r.Headers.Authorization.Parameter == authenticationToken.AccessToken;
+
+					return Task.FromResult(new HttpResponseMessage(isUnauthorized ? HttpStatusCode.Unauthorized : HttpStatusCode.OK));
+				}));
+
+			void BuildHttpClient(IHttpClientBuilder h) => h
+				.AddHttpMessageHandler<AuthenticationTokenHandler<TestToken>>()
+				.AddHttpMessageHandler<TestHandler>();
+
+			var httpClient = HttpClientTestsHelper.GetTestHttpClient(BuildServices, BuildHttpClient);
+
+			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
+
+			// Simulate multiple unauthorized request.
+			await Task.WhenAll(
+				httpClient.GetAsync(DefaultRequestUri),
+				httpClient.GetAsync(DefaultRequestUri),
+				httpClient.GetAsync(DefaultRequestUri)
+			);
+
+			// Validate that there were 6 request in total 3 requests (unauthorized request + request with new token).
+			authorizationHeaders.Count.Should().Be(6);
+			for (var i = 0; i < 3; i++)
+			{
+				// Unauthorized request. (First three requests)
+				authorizationHeaders.ElementAt(i).Parameter.Should().Be(authenticationToken.AccessToken);
+
+				// request with new token. (Last three request, after one of the first three requets has succesfully refreshed its token)
+				authorizationHeaders.ElementAt(3 + i).Parameter.Should().Be(refreshedAuthenticationToken.AccessToken);
+			}
+		}
+
+		[Fact]
+		public async Task It_Handle_MultipleUnauthorizedRequest_With_DifferentEndpoints()
+		{
+			var authenticationToken = new TestToken("AccessToken1", "RefreshToken1");
+			var refreshedAuthenticationToken = new TestToken("AccessToken2", "RefreshToken2");
+			var authorizationHeaders = new List<AuthenticationHeaderValue>();
+
+			var hasNotRefreshed = true;
+			TestToken currentRefreshToken = null;
+
+			async Task<TestToken> GetToken(CancellationToken ct, HttpRequestMessage request)
+			{
+				await Task.Delay(50);
+				return hasNotRefreshed ? authenticationToken : currentRefreshToken;
+			}
+
+			Task SessionExpired(CancellationToken ct, HttpRequestMessage request, TestToken unauthorizedToken)
+				=> Task.CompletedTask;
+
+			Task<TestToken> RefreshToken(CancellationToken ct, HttpRequestMessage request, TestToken token)
+			{
+				currentRefreshToken = hasNotRefreshed ? refreshedAuthenticationToken : null;
+				hasNotRefreshed = false;
+				return Task.FromResult(currentRefreshToken);
+			}
+
+			void BuildServices(IServiceCollection s) => s
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
+				.AddTransient<AuthenticationTokenHandler<TestToken>>()
+				.AddTransient(_ => new TestHandler((r, ct) =>
+				{
+					authorizationHeaders.Add(r.Headers.Authorization);
+
+					var isUnauthorized = r.Headers.Authorization.Parameter != null && r.Headers.Authorization.Parameter == authenticationToken.AccessToken;
+
+					return Task.FromResult(new HttpResponseMessage(isUnauthorized ? HttpStatusCode.Unauthorized : HttpStatusCode.OK));
+				}));
+
+			void BuildHttpClient(IHttpClientBuilder h) => h
+				.AddHttpMessageHandler<AuthenticationTokenHandler<TestToken>>()
+				.AddHttpMessageHandler<TestHandler>();
+
+			var httpClients = HttpClientTestsHelper.GetTestHttpClients(BuildServices, BuildHttpClient);
+
+			httpClients.client1.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
+			httpClients.client2.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
+
+			// Simulate multiple unauthorized request.
+			await Task.WhenAll(
+				httpClients.client1.GetAsync(DefaultRequestUri),
+				httpClients.client2.GetAsync(DefaultRequestUri)
+			);
+
+			// Validate that there were 2 request in total 2 requests (unauthorized request + request with new token).
+			authorizationHeaders.Count.Should().Be(4);
+			for (var i = 0; i < 2; i++)
+			{
+				// Unauthorized request. (First two requests)
+				authorizationHeaders.ElementAt(i).Parameter.Should().Be(authenticationToken.AccessToken);
+
+				// request with new token. (Last two request, after one of the first two requests has succesfully refreshed its token)
+				authorizationHeaders.ElementAt(2 + i).Parameter.Should().Be(refreshedAuthenticationToken.AccessToken);
+			}
+		}
+
+		[Fact]
+		public async Task It_NotifiesSessionExpiredOnce_If_Refresh_Throws_MultipleTimesConcurrently()
+		{
+			var sessionExpired = false;
+			var refreshedToken = false;
+			var authenticationToken = new TestToken("AccessToken1", "RefreshToken1");
+
+			var sessionExpiredCount = 0;
+
+			Task<TestToken> GetToken(CancellationToken ct, HttpRequestMessage request)
+				=> Task.FromResult(authenticationToken);
+
+			Task<TestToken> RefreshToken(CancellationToken ct, HttpRequestMessage request, TestToken token)
+			{
+				refreshedToken = true;
+
+				throw new TestException();
+			}
+
+			Task SessionExpired(CancellationToken ct, HttpRequestMessage request, TestToken token)
+			{
+				sessionExpired = true;
+				sessionExpiredCount++;
+
+				return Task.CompletedTask;
+			}
+
+			void BuildServices(IServiceCollection s) => s
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
+				.AddTransient<AuthenticationTokenHandler<TestToken>>()
+				.AddTransient(_ => new TestHandler((r, ct) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized))));
+
+			void BuildHttpClient(IHttpClientBuilder h) => h
+				.AddHttpMessageHandler<AuthenticationTokenHandler<TestToken>>()
+				.AddHttpMessageHandler<TestHandler>();
+
+			var httpClient = HttpClientTestsHelper.GetTestHttpClient(BuildServices, BuildHttpClient);
+
+			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
+
+			await Task.WhenAll(
+				httpClient.GetAsync(DefaultRequestUri),
+				httpClient.GetAsync(DefaultRequestUri)
+			);
+
+			refreshedToken.Should().BeTrue();
+			sessionExpired.Should().BeTrue();
+			sessionExpiredCount.Should().Be(1);
+		}
+
+		[Fact]
+		public async Task It_NotifiesSessionExpiredOnce_If_Refresh_Throws_MultipleTimesConcurrently_With_DifferentEndpoints()
+		{
+			var sessionExpired = false;
+			var refreshedToken = false;
+			var authenticationToken = new TestToken("AccessToken1", "RefreshToken1");
+
+			var sessionExpiredCount = 0;
+
+			Task<TestToken> GetToken(CancellationToken ct, HttpRequestMessage request)
+				=> Task.FromResult(authenticationToken);
+
+			Task<TestToken> RefreshToken(CancellationToken ct, HttpRequestMessage request, TestToken token)
+			{
+				refreshedToken = true;
+
+				throw new TestException();
+			}
+
+			Task SessionExpired(CancellationToken ct, HttpRequestMessage request, TestToken token)
+			{
+				sessionExpired = true;
+				sessionExpiredCount++;
+
+				return Task.CompletedTask;
+			}
+
+			void BuildServices(IServiceCollection s) => s
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
+				.AddTransient<AuthenticationTokenHandler<TestToken>>()
+				.AddTransient(_ => new TestHandler((r, ct) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized))));
+
+			void BuildHttpClient(IHttpClientBuilder h) => h
+				.AddHttpMessageHandler<AuthenticationTokenHandler<TestToken>>()
+				.AddHttpMessageHandler<TestHandler>();
+
+			var httpClients = HttpClientTestsHelper.GetTestHttpClients(BuildServices, BuildHttpClient);
+
+			httpClients.client1.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
+			httpClients.client2.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
+
+			await Task.WhenAll(
+				httpClients.client1.GetAsync(DefaultRequestUri),
+				httpClients.client2.GetAsync(DefaultRequestUri)
+			);
+
+			refreshedToken.Should().BeTrue();
+			sessionExpired.Should().BeTrue();
+			sessionExpiredCount.Should().Be(1);
 		}
 
 		public class AuthenticationClient

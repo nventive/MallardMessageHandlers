@@ -14,11 +14,10 @@ namespace MallardMessageHandlers.Tests
 			AccessToken = accessToken;
 			RefreshToken = refreshToken;
 		}
-
 		public string AccessToken { get; set; }
 
 		public string RefreshToken { get; set; }
 
-		public bool CanBeRefreshed => RefreshToken != null;
+		public bool CanBeRefreshed => !string.IsNullOrEmpty(RefreshToken);
 	}
 }
