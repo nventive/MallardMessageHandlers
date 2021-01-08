@@ -633,16 +633,15 @@ namespace MallardMessageHandlers.Tests
 				.AddHttpMessageHandler<AuthenticationTokenHandler<TestToken>>()
 				.AddHttpMessageHandler<TestHandler>();
 
-			var httpClient = HttpClientTestsHelper.GetTestHttpClient(BuildServices, BuildHttpClient);
-			var httpClient2 = HttpClientTestsHelper.GetTestHttpClient(BuildServices, BuildHttpClient);
+			var httpClients = HttpClientTestsHelper.GetTestHttpClients(BuildServices, BuildHttpClient);
 
-			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
-			httpClient2.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
+			httpClients.client1.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
+			httpClients.client2.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
 
 			// Simulate multiple unauthorized request.
 			await Task.WhenAll(
-				httpClient.GetAsync(DefaultRequestUri),
-				httpClient2.GetAsync(DefaultRequestUri)
+				httpClients.client1.GetAsync(DefaultRequestUri),
+				httpClients.client2.GetAsync(DefaultRequestUri)
 			);
 
 			// Validate that there were 2 request in total 2 requests (unauthorized request + request with new token).
@@ -744,15 +743,14 @@ namespace MallardMessageHandlers.Tests
 				.AddHttpMessageHandler<AuthenticationTokenHandler<TestToken>>()
 				.AddHttpMessageHandler<TestHandler>();
 
-			var httpClient = HttpClientTestsHelper.GetTestHttpClient(BuildServices, BuildHttpClient);
-			var httpClient2 = HttpClientTestsHelper.GetTestHttpClient(BuildServices, BuildHttpClient);
+			var httpClients = HttpClientTestsHelper.GetTestHttpClients(BuildServices, BuildHttpClient);
 
-			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
-			httpClient2.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
+			httpClients.client1.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
+			httpClients.client2.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
 
 			await Task.WhenAll(
-				httpClient.GetAsync(DefaultRequestUri),
-				httpClient2.GetAsync(DefaultRequestUri)
+				httpClients.client1.GetAsync(DefaultRequestUri),
+				httpClients.client2.GetAsync(DefaultRequestUri)
 			);
 
 			refreshedToken.Should().BeTrue();
