@@ -27,23 +27,19 @@ namespace MallardMessageHandlers
 	{
 		private readonly IAuthenticationTokenProvider<TAuthenticationToken> _tokenProvider;
 		private readonly ILogger _logger;
-		private readonly AuthenticationTokenHandlerContext _context;
 
 		/// <summary>
 		/// Initializes a new instance of the <see cref="AuthenticationTokenHandler{TAuthenticationToken}"/> class.
 		/// </summary>
 		/// <param name="tokenProvider"><see cref="IAuthenticationTokenProvider{TAuthenticationToken}"/></param>
 		/// <param name="logger"><see cref="ILogger"/></param>
-		/// <param name="context"><see cref="AuthenticationTokenHandlerContext"/></param>
 		public AuthenticationTokenHandler(
 			IAuthenticationTokenProvider<TAuthenticationToken> tokenProvider,
-			ILogger<AuthenticationTokenHandler<TAuthenticationToken>> logger,
-			AuthenticationTokenHandlerContext context = null
+			ILogger<AuthenticationTokenHandler<TAuthenticationToken>> logger
 		)
 		{
 			_tokenProvider = tokenProvider ?? throw new ArgumentNullException(nameof(tokenProvider));
 			_logger = logger ?? NullLogger<AuthenticationTokenHandler<TAuthenticationToken>>.Instance;
-			_context = context ?? new AuthenticationTokenHandlerContext();
 		}
 
 		/// <inheritdoc/>
@@ -72,7 +68,7 @@ namespace MallardMessageHandlers
 				_logger.LogError($"The request '{request.RequestUri}' was unauthorized and the token '{token}' cannot be refreshed. Considering the session has expired.");
 
 				// Request was unauthorized and we cannot refresh the authentication token.
-				await TryNotifySessionExpired(ct, request, token);
+				await _tokenProvider.NotifySessionExpired(ct, request, token);
 
 				return response;
 			}
@@ -84,7 +80,7 @@ namespace MallardMessageHandlers
 				_logger.LogError($"The request '{request.RequestUri}' was unauthorized and the token '{token}' could not be refreshed. Considering the session has expired.");
 
 				// No authentication token to use.
-				await TryNotifySessionExpired(ct, request, token);
+				await _tokenProvider.NotifySessionExpired(ct, request, token);
 
 				return response;
 			}
@@ -96,22 +92,12 @@ namespace MallardMessageHandlers
 				_logger.LogError($"The request '{request.RequestUri}' was unauthorized, the token '{token}' was refreshed to '{refreshedToken}' but the request was still unauthorized. Considering the session has expired.");
 
 				// Request was still unauthorized and we cannot refresh the authentication token.
-				await TryNotifySessionExpired(ct, request, refreshedToken);
+				await _tokenProvider.NotifySessionExpired(ct, request, refreshedToken);
 
 				return response;
 			}
 
 			return response;
-
-			async Task TryNotifySessionExpired(CancellationToken ct2, HttpRequestMessage innerRequest, TAuthenticationToken innerToken)
-			{
-				// Make sure that we notify that the session has been expired only once per TAutenticationToken.
-				if (!innerToken.AccessToken.Equals(_context.LastExpiredToken))
-				{
-					_context.LastExpiredToken = innerToken.AccessToken;
-					await _tokenProvider.NotifySessionExpired(ct2, innerRequest, innerToken);
-				}
-			}
 		}
 
 		/// <summary>
@@ -161,67 +147,7 @@ namespace MallardMessageHandlers
 
 			_logger.LogDebug($"Requesting refresh for token: '{unauthorizedToken}'.");
 
-			// Wait for the semaphore.
-			await _context.RefreshSemaphore.WaitAsync(ct);
-
-			try
-			{
-				// From this moment, the operation cannot be cancelled.
-				var refreshedToken = await GetRefreshedAuthenticationToken(CancellationToken.None);
-
-				return refreshedToken;
-			}
-			finally
-			{
-				// Release the semaphore.
-				_context.RefreshSemaphore.Release();
-			}
-
-			async Task<TAuthenticationToken> GetRefreshedAuthenticationToken(CancellationToken ct2)
-			{
-				// We get the current authentication token inside the lock
-				// as it's very possible that the unauthorized token is no
-				// longer the current token because another refresh request was made.
-				var currentToken = await _tokenProvider.GetToken(ct2, request);
-
-				_logger.LogDebug($"The current token is: '{currentToken}'.");
-
-				// If we don't have an authentication data or a refresh token, we cannot refresh the access token.
-				// This can happen if the session has expired while 2 concurrent refresh requests were made.
-				// The second request will not have a refresh token.
-				if (currentToken == null || !currentToken.CanBeRefreshed)
-				{
-					_logger.LogWarning($"The refresh token is null or cannot be refreshed.");
-
-					return default;
-				}
-
-				// If we have an access token but it's not the same, the token has been refreshed.
-				if (currentToken.AccessToken != null &&
-					currentToken.AccessToken != unauthorizedToken.AccessToken)
-				{
-					_logger.LogWarning($"The access tokens are different. No need to refresh, returning the current token '{currentToken}'.");
-
-					return currentToken;
-				}
-
-				try
-				{
-					_logger.LogDebug($"Refreshing token: '{unauthorizedToken}'.");
-
-					var refreshedToken = await _tokenProvider.RefreshToken(ct2, request, currentToken);
-
-					_logger.LogInformation($"Refreshed token: '{unauthorizedToken}' to '{refreshedToken}'.");
-
-					return refreshedToken;
-				}
-				catch (Exception e)
-				{
-					_logger.LogError(e, $"Failed to refresh token: '{unauthorizedToken}'.");
-
-					return default;
-				}
-			}
+			return await _tokenProvider.RefreshToken(ct, request, unauthorizedToken);			
 		}
 
 		/// <summary>
