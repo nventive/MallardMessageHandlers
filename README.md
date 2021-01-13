@@ -182,7 +182,8 @@ There is an implementation of `IAuthenticationTokenProvider` that receives the d
 ```csharp
 var authenticationService = new AuthenticationService();
 
-var authenticationTokenProvider = new AuthenticationTokenProvider<MyAuthenticationToken>(
+var authenticationTokenProvider = new ConcurrentAuthenticationTokenProvider<MyAuthenticationToken>(
+  loggerFactory: null,
   getToken: (ct, request) => authenticationService.GetToken(ct, request),
   notifySessionExpired: (ct, request, token) => authenticationService.NotifySessionExpired(ct, request, token),
   refreshToken: (ct, request, token) => authenticationService.RefreshToken(ct, request, token)  // Optional
@@ -224,9 +225,6 @@ You would generally register the `AuthenticationTokenHandler` on your `IServiceP
 ```csharp
 private void ConfigureAuthenticationTokenHandler(IServiceCollection services)
 {
-  // The AuthenticationTokenHandlerContext must be shared for all HttpRequests, so we add it as singleton.
-  services.AddSingleton<AuthenticationTokenHandlerContext>();
-
   // The AuthenticationTokenProvider must be shared for all HttpRequests so we add it as singleton.
   services.AddSingleton<IAuthenticationTokenProvider<MyAuthenticationToken>, MyAuthenticationTokenProvider>();
 

@@ -5,6 +5,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace MallardMessageHandlers
 {
@@ -39,7 +40,7 @@ namespace MallardMessageHandlers
 			Func<CancellationToken, HttpRequestMessage, TAuthenticationToken, Task<TAuthenticationToken>> refreshToken = null
 		)
 		{
-			_logger = loggerFactory.CreateLogger<ConcurrentAuthenticationTokenProvider<TAuthenticationToken>>();
+			_logger = loggerFactory?.CreateLogger<ConcurrentAuthenticationTokenProvider<TAuthenticationToken>>() ?? NullLogger<ConcurrentAuthenticationTokenProvider<TAuthenticationToken>>.Instance;
 			_getToken = getToken ?? throw new ArgumentNullException(nameof(getToken));
 			_notifySessionExpired = notifySessionExpired ?? throw new ArgumentNullException(nameof(notifySessionExpired));
 			_refreshToken = refreshToken;
