@@ -16,6 +16,7 @@ namespace MallardMessageHandlers
 	/// - IAuthenticationTokenProvider uses Service A.
 	/// </summary>
 	/// <typeparam name="TAuthenticationToken">Type of authentication token</typeparam>
+	[Obsolete("AuthenticationTokenProvider is obsolete. Use ConcurrentAuthenticationTokenProvider instead.", error: true)]
 	public class AuthenticationTokenProvider<TAuthenticationToken> : IAuthenticationTokenProvider<TAuthenticationToken>
 		where TAuthenticationToken : IAuthenticationToken
 	{
@@ -29,6 +30,7 @@ namespace MallardMessageHandlers
 		/// <param name="getToken">Method to retrieve the <typeparamref name="TAuthenticationToken"/>.</param>
 		/// <param name="notifySessionExpired">Method to call when the <typeparamref name="TAuthenticationToken"/> is considered expired.</param>
 		/// <param name="refreshToken">Method to refresh the token (only called if the token can be refreshed)</param>
+		[Obsolete("AuthenticationTokenProvider is obsolete. Use ConcurrentAuthenticationTokenProvider instead.", error: true)]
 		public AuthenticationTokenProvider(
 			Func<CancellationToken, HttpRequestMessage, Task<TAuthenticationToken>> getToken,
 			Func<CancellationToken, HttpRequestMessage, TAuthenticationToken, Task> notifySessionExpired,
