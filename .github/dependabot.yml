@@ -1,0 +1,24 @@
+version: 2
+updates:
+- package-ecosystem: nuget
+  directory: "/"
+  schedule:
+    interval: weekly
+  open-pull-requests-limit: 10
+  labels:
+  - kind/dependency
+  - do-not-merge/work-in-progress
+  ignore:
+  - dependency-name: Microsoft.NET.Test.Sdk
+    versions:
+    - 16.8.3
+    - 16.9.1
+  - dependency-name: System.Text.Json
+    versions:
+    - 5.0.1
+  - dependency-name: Moq
+    versions:
+    - 4.16.0
+  commit-message:
+    prefix: chore
+    include: scope
