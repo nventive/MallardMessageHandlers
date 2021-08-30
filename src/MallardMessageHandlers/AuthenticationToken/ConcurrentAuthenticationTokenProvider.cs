@@ -109,10 +109,7 @@ namespace MallardMessageHandlers
 			}
 		}
 
-		protected virtual Task NotifySessionExpiredCore(CancellationToken ct, HttpRequestMessage request, TAuthenticationToken unauthorizedToken)
-		{
-			return Task.CompletedTask;
-		}
+		protected abstract Task NotifySessionExpiredCore(CancellationToken ct, HttpRequestMessage request, TAuthenticationToken unauthorizedToken);
 
 		protected abstract Task<TAuthenticationToken> RefreshTokenCore(CancellationToken ct, HttpRequestMessage request, TAuthenticationToken unauthorizedToken);
 	}
