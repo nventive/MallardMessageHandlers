@@ -1,7 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Net.Http;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -14,13 +12,9 @@ namespace MallardMessageHandlers
 	/// It also ensures that only 1 NotifySessionExpired operation runs for equivalent expirations.
 	/// </summary>
 	/// <typeparam name="TAuthenticationToken">Type of authentication token</typeparam>
-	public class ConcurrentAuthenticationTokenProvider<TAuthenticationToken> : IAuthenticationTokenProvider<TAuthenticationToken>
+	public abstract class ConcurrentAuthenticationTokenProvider<TAuthenticationToken> : IAuthenticationTokenProvider<TAuthenticationToken>
 		where TAuthenticationToken : IAuthenticationToken
 	{
-		private readonly Func<CancellationToken, HttpRequestMessage, Task<TAuthenticationToken>> _getToken;
-		private readonly Func<CancellationToken, HttpRequestMessage, TAuthenticationToken, Task> _notifySessionExpired;
-		private readonly Func<CancellationToken, HttpRequestMessage, TAuthenticationToken, Task<TAuthenticationToken>> _refreshToken;
-
 		private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
 		private readonly ILogger _logger;
 
@@ -30,25 +24,13 @@ namespace MallardMessageHandlers
 		/// Initializes a new instance of the <see cref="ConcurrentAuthenticationTokenProvider{TAuthenticationToken}"/> class.
 		/// </summary>
 		/// <param name="loggerFactory">The logger factory to create the internal logger for this class.</param>
-		/// <param name="getToken">Method to retrieve the <typeparamref name="TAuthenticationToken"/>.</param>
-		/// <param name="notifySessionExpired">Method to call when the <typeparamref name="TAuthenticationToken"/> is considered expired.</param>
-		/// <param name="refreshToken">Method to refresh the token (only called if the token can be refreshed)</param>
-		public ConcurrentAuthenticationTokenProvider(
-			ILoggerFactory loggerFactory,
-			Func<CancellationToken, HttpRequestMessage, Task<TAuthenticationToken>> getToken,
-			Func<CancellationToken, HttpRequestMessage, TAuthenticationToken, Task> notifySessionExpired,
-			Func<CancellationToken, HttpRequestMessage, TAuthenticationToken, Task<TAuthenticationToken>> refreshToken = null
-		)
+		public ConcurrentAuthenticationTokenProvider(ILoggerFactory loggerFactory)
 		{
 			_logger = loggerFactory?.CreateLogger<ConcurrentAuthenticationTokenProvider<TAuthenticationToken>>() ?? NullLogger<ConcurrentAuthenticationTokenProvider<TAuthenticationToken>>.Instance;
-			_getToken = getToken ?? throw new ArgumentNullException(nameof(getToken));
-			_notifySessionExpired = notifySessionExpired ?? throw new ArgumentNullException(nameof(notifySessionExpired));
-			_refreshToken = refreshToken;
 		}
 
 		/// <inheritdoc />
-		public Task<TAuthenticationToken> GetToken(CancellationToken ct, HttpRequestMessage request) =>
-			_getToken.Invoke(ct, request);
+		public abstract Task<TAuthenticationToken> GetToken(CancellationToken ct, HttpRequestMessage request);
 
 		/// <inheritdoc />
 		public async Task NotifySessionExpired(CancellationToken ct, HttpRequestMessage request, TAuthenticationToken unauthorizedToken)
@@ -57,18 +39,13 @@ namespace MallardMessageHandlers
 			if (_lastUnauthorizedToken?.AccessToken != unauthorizedToken?.AccessToken)
 			{
 				_lastUnauthorizedToken = unauthorizedToken;
-				await _notifySessionExpired(ct, request, unauthorizedToken);
+				await NotifySessionExpiredCore(ct, request, unauthorizedToken);
 			}
 		}
 
 		/// <inheritdoc />
 		public async Task<TAuthenticationToken> RefreshToken(CancellationToken ct, HttpRequestMessage request, TAuthenticationToken unauthorizedToken)
 		{
-			if (_refreshToken == null)
-			{
-				throw new NotSupportedException("This authentication token provider doesn't support refreshing the token.");
-			}
-
 			// Wait for other refresh operations to finish.
 			await _semaphore.WaitAsync(ct);
 
@@ -117,7 +94,7 @@ namespace MallardMessageHandlers
 				{
 					_logger.LogDebug($"Refreshing token: '{unauthorizedToken}'.");
 
-					var refreshedToken = await _refreshToken(ct2, request, currentToken);
+					var refreshedToken = await RefreshTokenCore(ct2, request, currentToken);
 
 					_logger.LogInformation($"Refreshed token: '{unauthorizedToken}' to '{refreshedToken}'.");
 
@@ -131,5 +108,12 @@ namespace MallardMessageHandlers
 				}
 			}
 		}
+
+		protected virtual Task NotifySessionExpiredCore(CancellationToken ct, HttpRequestMessage request, TAuthenticationToken unauthorizedToken)
+		{
+			return Task.CompletedTask;
+		}
+
+		protected abstract Task<TAuthenticationToken> RefreshTokenCore(CancellationToken ct, HttpRequestMessage request, TAuthenticationToken unauthorizedToken);
 	}
 }

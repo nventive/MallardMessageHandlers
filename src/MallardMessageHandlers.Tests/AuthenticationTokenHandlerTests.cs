@@ -4,14 +4,12 @@ using System.Linq;
 using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
-using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
-using MallardMessageHandlers;
-using Xunit;
 using Microsoft.Extensions.Logging;
+using Xunit;
 
 namespace MallardMessageHandlers.Tests
 {
@@ -32,7 +30,7 @@ namespace MallardMessageHandlers.Tests
 				=> Task.CompletedTask;
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new DelegateAuthenticationTokenProvider(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) =>
 				{
@@ -66,7 +64,7 @@ namespace MallardMessageHandlers.Tests
 				=> Task.CompletedTask;
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new DelegateAuthenticationTokenProvider(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) =>
 				{
@@ -105,7 +103,7 @@ namespace MallardMessageHandlers.Tests
 				=> Task.CompletedTask;
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new DelegateAuthenticationTokenProvider(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) => Task.FromResult(new HttpResponseMessage())));
 
@@ -141,7 +139,7 @@ namespace MallardMessageHandlers.Tests
 			}
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new DelegateAuthenticationTokenProvider(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) => Task.FromResult(new HttpResponseMessage())));
 
@@ -175,7 +173,7 @@ namespace MallardMessageHandlers.Tests
 				=> Task.FromResult(refreshedAuthenticationToken);
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new DelegateAuthenticationTokenProvider(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) =>
 				{
@@ -218,7 +216,7 @@ namespace MallardMessageHandlers.Tests
 			}
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new DelegateAuthenticationTokenProvider(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized))));
 
@@ -260,7 +258,7 @@ namespace MallardMessageHandlers.Tests
 			}
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new DelegateAuthenticationTokenProvider(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized))));
 
@@ -300,7 +298,7 @@ namespace MallardMessageHandlers.Tests
 			}
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new DelegateAuthenticationTokenProvider(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) =>
 				{
@@ -350,7 +348,7 @@ namespace MallardMessageHandlers.Tests
 			}
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new DelegateAuthenticationTokenProvider(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized))));
 
@@ -378,7 +376,7 @@ namespace MallardMessageHandlers.Tests
 
 			void BuildServices(IServiceCollection s) => s
 				// IAuthenticationTokenProvider is AuthenticationTokenProvider which depends on AuthenticationClient
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new DelegateAuthenticationTokenProvider(
 					sp.GetService<ILoggerFactory>(),
 					(ct, r) => sp.GetRequiredService<AuthenticationClient>().GetToken(ct, r),
 					(ct, r, t) => Task.CompletedTask
@@ -430,7 +428,7 @@ namespace MallardMessageHandlers.Tests
 			}
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new DelegateAuthenticationTokenProvider(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) =>
 				{
@@ -495,7 +493,7 @@ namespace MallardMessageHandlers.Tests
 			}
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new DelegateAuthenticationTokenProvider(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized))));
 
@@ -554,7 +552,7 @@ namespace MallardMessageHandlers.Tests
 			}
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new DelegateAuthenticationTokenProvider(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) =>
 				{
@@ -619,7 +617,7 @@ namespace MallardMessageHandlers.Tests
 			}
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new DelegateAuthenticationTokenProvider(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) =>
 				{
@@ -685,7 +683,7 @@ namespace MallardMessageHandlers.Tests
 			}
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new DelegateAuthenticationTokenProvider(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized))));
 
@@ -735,7 +733,7 @@ namespace MallardMessageHandlers.Tests
 			}
 
 			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new DelegateAuthenticationTokenProvider(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired, RefreshToken))
 				.AddTransient<AuthenticationTokenHandler<TestToken>>()
 				.AddTransient(_ => new TestHandler((r, ct) => Task.FromResult(new HttpResponseMessage(HttpStatusCode.Unauthorized))));
 
@@ -763,6 +761,34 @@ namespace MallardMessageHandlers.Tests
 			public AuthenticationClient(HttpClient client) { }
 
 			public async Task<TestToken> GetToken(CancellationToken ct, HttpRequestMessage request) => default(TestToken);
+		}
+
+		public class DelegateAuthenticationTokenProvider : ConcurrentAuthenticationTokenProvider<TestToken>
+		{
+			private readonly Func<CancellationToken, HttpRequestMessage, Task<TestToken>> _getToken;
+			private readonly Func<CancellationToken, HttpRequestMessage, TestToken, Task> _notifySessionExpired;
+			private readonly Func<CancellationToken, HttpRequestMessage, TestToken, Task<TestToken>> _refreshToken;
+
+			public DelegateAuthenticationTokenProvider(
+				ILoggerFactory loggerFactory,
+				Func<CancellationToken, HttpRequestMessage, Task<TestToken>> getToken,
+				Func<CancellationToken, HttpRequestMessage, TestToken, Task> notifySessionExpired,
+				Func<CancellationToken, HttpRequestMessage, TestToken, Task<TestToken>> refreshToken = null)
+				: base(loggerFactory)
+			{
+				_getToken = getToken;
+				_notifySessionExpired = notifySessionExpired;
+				_refreshToken = refreshToken;
+			}
+
+			public override Task<TestToken> GetToken(CancellationToken ct, HttpRequestMessage request)
+				=> _getToken(ct, request);
+
+			protected override Task NotifySessionExpiredCore(CancellationToken ct, HttpRequestMessage request, TestToken unauthorizedToken)
+				=> _notifySessionExpired(ct, request, unauthorizedToken);
+
+			protected override Task<TestToken> RefreshTokenCore(CancellationToken ct, HttpRequestMessage request, TestToken unauthorizedToken)
+				=> _refreshToken?.Invoke(ct, request, unauthorizedToken);
 		}
 	}
 }
