@@ -45,7 +45,7 @@ namespace MallardMessageHandlers
 		}
 
 		/// <summary>
-		/// Gets or sets the Scheme.
+		/// Gets the Scheme.
 		/// </summary>
 		public virtual string Scheme { get; } = "Bearer";
 
