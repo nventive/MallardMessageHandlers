@@ -55,51 +55,10 @@ namespace MallardMessageHandlers.Tests
 		}
 
 		[Fact]
-		public async Task It_RemovesAuthorizationHeader_If_NoToken()
+		public async Task It_SucceedsToCall_If_NoToken()
 		{
-			var authorizationHeader = default(AuthenticationHeaderValue);
-
 			Task<TestToken> GetToken(CancellationToken ct, HttpRequestMessage request)
 				=> Task.FromResult(default(TestToken));
-
-			Task SessionExpired(CancellationToken ct, HttpRequestMessage request, TestToken unauthorizedToken)
-				=> Task.CompletedTask;
-
-			void BuildServices(IServiceCollection s) => s
-				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired))
-				.AddTransient<AuthenticationTokenHandler<TestToken>>()
-				.AddTransient(_ => new TestHandler((r, ct) =>
-				{
-					authorizationHeader = r.Headers.Authorization;
-
-					return Task.FromResult(new HttpResponseMessage());
-				}));
-
-			void BuildHttpClient(IHttpClientBuilder h) => h
-				.AddHttpMessageHandler<AuthenticationTokenHandler<TestToken>>()
-				.AddHttpMessageHandler<TestHandler>();
-
-			var httpClient = HttpClientTestsHelper.GetTestHttpClient(BuildServices, BuildHttpClient);
-
-			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer");
-
-			await httpClient.GetAsync(DefaultRequestUri);
-
-			authorizationHeader.Should().BeNull();
-		}
-
-		[Fact]
-		public async Task It_Doesnt_GetToken_If_NoAuthorization()
-		{
-			var isTokenRequested = false;
-			var authenticationToken = new TestToken("AccessToken1");
-
-			Task<TestToken> GetToken(CancellationToken ct, HttpRequestMessage request)
-			{
-				isTokenRequested = true;
-
-				return Task.FromResult(authenticationToken);
-			}
 
 			Task SessionExpired(CancellationToken ct, HttpRequestMessage request, TestToken unauthorizedToken)
 				=> Task.CompletedTask;
@@ -115,9 +74,73 @@ namespace MallardMessageHandlers.Tests
 
 			var httpClient = HttpClientTestsHelper.GetTestHttpClient(BuildServices, BuildHttpClient);
 
-			await httpClient.GetAsync(DefaultRequestUri);
+			var response = await httpClient.GetAsync(DefaultRequestUri);
 
-			isTokenRequested.Should().BeFalse();
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
+			response.IsSuccessStatusCode.Should().BeTrue();
+		}
+
+		[Fact]
+		public async Task It_FailsToCallAuthorizedEndpoint_If_NoToken()
+		{
+			Task<TestToken> GetToken(CancellationToken ct, HttpRequestMessage request)
+				=> Task.FromResult(default(TestToken));
+
+			Task SessionExpired(CancellationToken ct, HttpRequestMessage request, TestToken unauthorizedToken)
+				=> Task.CompletedTask;
+
+			void BuildServices(IServiceCollection s) => s
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired))
+				.AddTransient<AuthenticationTokenHandler<TestToken>>()
+				.AddTransient(_ => new TestHandler(async (r, ct) =>
+				{
+					if (r.Headers.Authorization == null)
+					{
+						return new HttpResponseMessage { StatusCode = HttpStatusCode.Unauthorized };
+					}
+
+					return new HttpResponseMessage();
+				}));
+
+			void BuildHttpClient(IHttpClientBuilder h) => h
+				.AddHttpMessageHandler<AuthenticationTokenHandler<TestToken>>()
+				.AddHttpMessageHandler<TestHandler>();
+
+			var httpClient = HttpClientTestsHelper.GetTestHttpClient(BuildServices, BuildHttpClient);
+
+			var response = await httpClient.GetAsync(DefaultRequestUri);
+
+			response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
+			response.IsSuccessStatusCode.Should().BeFalse();
+		}
+
+		[Fact]
+		public async Task It_DoesntAddToken_If_EndpointIsAnonymous()
+		{
+			Task<TestToken> GetToken(CancellationToken ct, HttpRequestMessage request)
+				=> Task.FromResult(new TestToken("AccessToken1"));
+
+			Task SessionExpired(CancellationToken ct, HttpRequestMessage request, TestToken unauthorizedToken)
+				=> Task.CompletedTask;
+
+			void BuildServices(IServiceCollection s) => s
+				.AddSingleton<IAuthenticationTokenProvider<TestToken>>(sp => new ConcurrentAuthenticationTokenProvider<TestToken>(sp.GetService<ILoggerFactory>(), GetToken, SessionExpired))
+				.AddTransient<AuthenticationTokenHandler<TestToken>>()
+				.AddTransient(_ => new TestHandler(async (r, ct) => new HttpResponseMessage { RequestMessage = r }));
+
+			void BuildHttpClient(IHttpClientBuilder h) => h
+				.AddHttpMessageHandler<AuthenticationTokenHandler<TestToken>>()
+				.AddHttpMessageHandler<TestHandler>();
+
+			var httpClient = HttpClientTestsHelper.GetTestHttpClient(BuildServices, BuildHttpClient);
+
+			httpClient.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Anonymous");
+
+			var response = await httpClient.GetAsync(DefaultRequestUri);
+
+			response.RequestMessage.Headers.Authorization.Should().BeNull();
+
+			response.StatusCode.Should().Be(HttpStatusCode.OK);
 		}
 
 		[Fact]
