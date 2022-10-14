@@ -8,6 +8,7 @@
 		<PackageId>MallardMessageHandlers</PackageId>
 		<Description>MallardMessageHandlers</Description>
 		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<LangVersion>10</LangVersion>
 		<PackageTags>delegatinghandler;oauth;network-status;network;networkexception;authenticationtoken;exceptioninterpreter;exceptionhub</PackageTags>
 		<PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
 		<PackageProjectUrl>https://github.com/nventive/MallardMessageHandlers</PackageProjectUrl>
