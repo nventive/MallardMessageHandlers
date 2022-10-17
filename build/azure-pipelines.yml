@@ -6,19 +6,22 @@ trigger:
 resources:
    containers:
      - container: windows
-       image: nventive/build-agent:vs16.4.0
+       image: nventive/vs_build-tools:vs17.2.5
 
 variables:
 - name: NUGET_VERSION
-  value: 5.8.1
+  value: 6.2.0
 - name: VSTEST_PLATFORM_VERSION
-  value: 16.8.6
+  value: 17.2.5
 - name: ArtifactName
   value: Packages
 - name: SolutionFileName # Example: MyApplication.sln
   value: MallardMessageHandlers.sln
 - name: IsReleaseBranch # Should this branch name use the release stage
   value: $[or(eq(variables['Build.SourceBranch'], 'refs/heads/main'), startsWith(variables['Build.SourceBranch'], 'refs/heads/feature/'), startsWith(variables['Build.SourceBranch'], 'refs/heads/release/'))]
+# Pool names
+- name: windowsPoolName
+  value: 'windows 2022'
 
 stages:
 - stage: Build
@@ -33,7 +36,7 @@ stages:
           GeneratePackageOnBuild: true
 
     pool:
-      name: Container
+      name: $(windowsPoolName)
 
     variables:
     - name: PackageOutputPath # Path where nuget packages will be copied to.
@@ -54,7 +57,7 @@ stages:
   - job: Publish_NuGet_External
 
     pool:
-      name: Container
+      name: $(windowsPoolName)
 
     workspace:
       clean: all # Cleanup the workspaca before starting
