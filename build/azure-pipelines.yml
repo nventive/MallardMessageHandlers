@@ -6,7 +6,7 @@ trigger:
 resources:
    containers:
      - container: windows
-       image: nventive/vs_build-tools:vs17.2.5
+       image: nventive/vs_build-tools:17.2.5
 
 variables:
 - name: NUGET_VERSION
