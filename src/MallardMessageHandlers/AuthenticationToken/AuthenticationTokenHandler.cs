@@ -11,8 +11,10 @@ namespace MallardMessageHandlers
 {
 	/// <summary>
 	/// This <see cref="HttpMessageHandler"/> handles the access token logic.
-	/// If the request should include an authentication token <see cref="ShouldIncludeToken(HttpRequestMessage)"/>,
-	/// the handler gets the token from the <see cref="IAuthenticationTokenProvider{TAuthenticationToken}"/>.
+	/// By default, a token is included in every request, except if the request already contains an
+	/// authorization header with its scheme set to "Anonymous".
+	/// This behavior can be modified by overriding the <see cref="ShouldIncludeToken(HttpRequestMessage)"/>.
+	/// By default, the authorization header scheme is "Bearer", but it can be overriden in a derived class.
 	/// By default, a token is added if the request contains the Authorization header.
 	/// If a token is returned, the token is added to the header. Otherwise, the header is removed.
 	/// If the response is considered unauthorized <see cref="IsUnauthorized(HttpRequestMessage, HttpResponseMessage)"/>
@@ -42,6 +44,11 @@ namespace MallardMessageHandlers
 			_logger = logger ?? NullLogger<AuthenticationTokenHandler<TAuthenticationToken>>.Instance;
 		}
 
+		/// <summary>
+		/// Gets the Scheme.
+		/// </summary>
+		public virtual string Scheme { get; } = "Bearer";
+
 		/// <inheritdoc/>
 		protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken ct)
 		{
@@ -49,6 +56,8 @@ namespace MallardMessageHandlers
 			{
 				// Request doesn't require an authentication token.
 				_logger.LogDebug($"The request '{request.RequestUri}' doesn't require an authentication token.");
+
+				request.Headers.Authorization = null;
 
 				return await base.SendAsync(request, ct);
 			}
@@ -63,7 +72,7 @@ namespace MallardMessageHandlers
 				return response;
 			}
 
-			if (!token.CanBeRefreshed)
+			if (token == null || !token.CanBeRefreshed)
 			{
 				_logger.LogError($"The request '{request.RequestUri}' was unauthorized and the token '{token}' cannot be refreshed. Considering the session has expired.");
 
@@ -117,11 +126,7 @@ namespace MallardMessageHandlers
 		{
 			if (authenticationToken?.AccessToken != null)
 			{
-				request.Headers.Authorization = new AuthenticationHeaderValue(request.Headers.Authorization.Scheme, authenticationToken.AccessToken);
-			}
-			else
-			{
-				request.Headers.Remove("Authorization");
+				request.Headers.Authorization = new AuthenticationHeaderValue(Scheme, authenticationToken.AccessToken);
 			}
 
 			return await base.SendAsync(request, ct);
@@ -147,7 +152,7 @@ namespace MallardMessageHandlers
 
 			_logger.LogDebug($"Requesting refresh for token: '{unauthorizedToken}'.");
 
-			return await _tokenProvider.RefreshToken(ct, request, unauthorizedToken);			
+			return await _tokenProvider.RefreshToken(ct, request, unauthorizedToken);
 		}
 
 		/// <summary>
@@ -156,7 +161,7 @@ namespace MallardMessageHandlers
 		/// <param name="request"><see cref="HttpRequestMessage"/></param>
 		/// <returns>Whether or not the request should include an authentication token</returns>
 		public virtual bool ShouldIncludeToken(HttpRequestMessage request)
-			=> request.Headers.Authorization != null;
+			=> !request.Headers.Authorization?.Scheme?.Equals("Anonymous", StringComparison.OrdinalIgnoreCase) ?? true;
 
 		/// <summary>
 		/// Returns whether or not the request is considered unauthorized.
