@@ -1,8 +1,7 @@
-# MallardMessageHandlers
+# MallardMessageHandlers 🦆
+[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](LICENSE) ![Version](https://img.shields.io/nuget/v/MallardMessageHandlers?style=flat-square) ![Downloads](https://img.shields.io/nuget/dt/MallardMessageHandlers?style=flat-square)
 
 `MallardMessageHandlers` offers `DelegatingHandlers` which will be handy in many projects which use the HTTP stack.
-
-[![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](LICENSE)
 
 ## Getting Started
 
