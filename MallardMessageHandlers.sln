@@ -1,11 +1,13 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 16
-VisualStudioVersion = 16.0.29905.134
+# Visual Studio Version 17
+VisualStudioVersion = 17.3.32901.215
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MallardMessageHandlers", "src\MallardMessageHandlers\MallardMessageHandlers.csproj", "{8EEF328D-CBC8-45DB-9526-904CC58D2F57}"
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MallardMessageHandlers.Tests", "src\MallardMessageHandlers.Tests\MallardMessageHandlers.Tests.csproj", "{47E50E30-646E-441B-B2EF-77A33CA4D4B1}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "MallardMessageHandlers.Refit", "src\MallardMessageHandlers.Refit\MallardMessageHandlers.Refit.csproj", "{3032964A-167E-4DF5-B279-B88E504A282F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -31,6 +33,14 @@ Global
 		{47E50E30-646E-441B-B2EF-77A33CA4D4B1}.Release|Any CPU.Build.0 = Release|Any CPU
 		{47E50E30-646E-441B-B2EF-77A33CA4D4B1}.Release|NuGet.ActiveCfg = Release|Any CPU
 		{47E50E30-646E-441B-B2EF-77A33CA4D4B1}.Release|NuGet.Build.0 = Release|Any CPU
+		{3032964A-167E-4DF5-B279-B88E504A282F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{3032964A-167E-4DF5-B279-B88E504A282F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{3032964A-167E-4DF5-B279-B88E504A282F}.Debug|NuGet.ActiveCfg = Debug|Any CPU
+		{3032964A-167E-4DF5-B279-B88E504A282F}.Debug|NuGet.Build.0 = Debug|Any CPU
+		{3032964A-167E-4DF5-B279-B88E504A282F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{3032964A-167E-4DF5-B279-B88E504A282F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{3032964A-167E-4DF5-B279-B88E504A282F}.Release|NuGet.ActiveCfg = Release|Any CPU
+		{3032964A-167E-4DF5-B279-B88E504A282F}.Release|NuGet.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

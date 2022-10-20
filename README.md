@@ -37,6 +37,7 @@ This repository contains multiple implementations of `DelegatingHandlers` for di
 Here is a list of the `DelegatingHandlers` provided.
 
 - [NetworkExceptionHandler](#NetworkExceptionHandler) : Throws an exception if the HttpRequest fails and there is no network.
+- [SimpleCacheHandler](#SimpleCacheHandler) : Implement simple application caching using instructions from custom HTTP headers.
 - [ExceptionHubHandler](#ExceptionHubHandler) : Reports all exceptions that occur on the pipeline.
 - [ExceptionInterpreterHandler](#ExceptionInterpreterHandler) : Interprets error responses and converts them to exceptions.
 - [AuthenticationTokenHandler](#AuthenticationTokenHandler) : Adds the authentication token to the authorization header.
@@ -87,6 +88,74 @@ private void ConfigureNetworkExceptionHandler(IServiceCollection services)
 
   // The NetworkExceptionHandler must be recreated for all HttpRequests so we add it as transient.
   services.AddTransient<NetworkExceptionHandler>();
+}
+```
+
+### SimpleCacheHandler
+
+The `SimpleCacheHandler` is a `DelegatingHandler` that executes custom caching instructions.
+
+When you use Refit for your endpoints declaration, you can neatly specify caching instructions with attributes.
+Just install the the `MallardMessageHandler.Refit` package to get those Refit-compatible attributes.
+
+- You can specify time-to-live at different levels.
+  - On a per-call level (using attributes)
+  - Globally (using default headers)
+- You can support force-refresh scenarios (i.e. don't read the cache, but update it).
+This can be useful for things like pull-to-refresh.
+- You can disable the cache on a per-call level.
+This only makes sense when you define default caching globally.
+
+```csharp
+using MallardMessageHandlers.SimpleCaching;
+
+public interface ISampleEndpoint
+{
+  [Get("/sample")]
+  Task<string> GetSampleDefault(CancellationToken ct, [ForceRefresh] bool forceRefresh = false);
+
+  [Get("/sample")]
+  [TimeToLive(totalMinutes: 5)] // You can customize the TTL on a per-call basis.
+  Task<string> GetSampleCustomTTL(CancellationToken ct, [ForceRefresh] bool forceRefresh = false);
+
+  [Get("/sample")]
+  [NoCache] // When you have a default TTL, you can bypass it on a per-call basis.
+  Task<string> GetSampleNoCache(CancellationToken ct);
+}
+```
+
+Here's how you can configure a default time-to-live for all calls.
+```csharp
+serviceCollection
+  .AddRefitClient<ISampleEndpoint>()
+  .ConfigureHttpClient((client) =>
+  {
+    // You can configure a default time-to-live for all calls.
+    // "600" represents 10 minutes (600 seconds).
+    client.DefaultRequestHeaders.Add(SimpleCacheHandler.CacheTimeToLiveHeaderName, "600");
+  });
+```
+
+The `SimpleCacheHandler` has a few dependencies.
+- `ISimpleCacheService` which implements the actual caching of data.
+  - The interface is pretty simple, so you can easily create implementations.
+  - You can also use our `MemorySimpleCacheService` implementation.
+- `ISimpleCacheKeyProvider` which generates the cache keys from the `HttpMessageRequest` objects.
+  - You can use the `SimpleCacheKeyProvider` to create your keys using a custom `Func<HttpRequestMessage,string>`.
+  - You can also use one of our built-in implementations:
+    - `SimpleCacheKeyProvider.FromUriOnly`
+    - `SimpleCacheKeyProvider.FromUriAndAuthorizationHash`
+
+```csharp
+private void ConfigureCacheHandler(IServiceCollection services)
+{
+  // The ISimpleCacheService and ISimpleCacheKeyProvider are shared for all HttpRequests so we add them as singleton.
+  services
+    .AddSingleton<ISimpleCacheService, MemorySimpleCacheService>();
+    .AddSingleton<ISimpleCacheKeyProvider>(CacheKeyProvider.FromUriOnly);
+
+  // The SimpleCacheHandler must be recreated for all HttpRequests so we add it as transient.
+  services.AddTransient<SimpleCacheHandler>();
 }
 ```
 
@@ -232,10 +301,9 @@ private void ConfigureAuthenticationTokenHandler(IServiceCollection services)
 }
 ```
 
-## Changelog
+## Breaking Changes
 
-Please consult the [CHANGELOG](CHANGELOG.md) for more information about version
-history.
+Please consult the [BREAKING_CHANGES.md](BREAKING_CHANGES.md) for more information about breaking changes and version history.
 
 ## License
 
@@ -248,8 +316,3 @@ Please read [CONTRIBUTING.md](CONTRIBUTING.md) for details on the process for
 contributing to this project.
 
 Be mindful of our [Code of Conduct](CODE_OF_CONDUCT.md).
-
-## Contributors
-
-<!-- ALL-CONTRIBUTORS-LIST:START - Do not remove or modify this section -->
-<!-- ALL-CONTRIBUTORS-LIST:END -->
