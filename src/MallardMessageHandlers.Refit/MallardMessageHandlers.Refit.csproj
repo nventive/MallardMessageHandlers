@@ -1,0 +1,43 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+	<PropertyGroup>
+		<TargetFrameworks>netstandard2.0</TargetFrameworks>
+		<RootNamespace>MallardMessageHandlers</RootNamespace>
+		<Authors>nventive</Authors>
+		<Company>nventive</Company>
+		<AssemblyName>MallardMessageHandlers.Refit</AssemblyName>
+		<PackageId>MallardMessageHandlers.Refit</PackageId>
+		<Description>MallardMessageHandlers.Refit</Description>
+		<GenerateDocumentationFile>true</GenerateDocumentationFile>
+		<LangVersion>10</LangVersion>
+		<PackageTags>delegatinghandler;oauth;network-status;network;networkexception;authenticationtoken;exceptioninterpreter;exceptionhub;refit</PackageTags>
+		<PackageLicenseExpression>Apache-2.0</PackageLicenseExpression>
+		<PackageProjectUrl>https://github.com/nventive/MallardMessageHandlers</PackageProjectUrl>
+		<PackageReadmeFile>README.md</PackageReadmeFile>
+
+		<!--Needed for Source Link support -->
+		<PublishRepositoryUrl>true</PublishRepositoryUrl>
+		<EmbedUntrackedSources>true</EmbedUntrackedSources>
+		<IncludeSymbols>true</IncludeSymbols>
+		<SymbolPackageFormat>snupkg</SymbolPackageFormat>
+	</PropertyGroup>
+
+	<ItemGroup>
+		<None Include="..\..\README.md">
+			<Pack>True</Pack>
+			<PackagePath>\</PackagePath>
+		</None>
+	</ItemGroup>
+
+	<ItemGroup>
+		<PackageReference Include="Refit" Version="6.0.1" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<!--Needed for Source Link support -->
+		<PackageReference Include="Microsoft.SourceLink.GitHub" Version="1.1.1" PrivateAssets="All" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <ProjectReference Include="..\MallardMessageHandlers\MallardMessageHandlers.csproj" />
+	</ItemGroup>
+</Project>

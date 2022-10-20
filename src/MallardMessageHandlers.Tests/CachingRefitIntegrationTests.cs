@@ -11,31 +11,22 @@ using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Refit;
 using Xunit;
-using static MallardMessageHandlers.Tests.CacheInstructions;
 
 namespace MallardMessageHandlers.Tests
 {
-	public static class CacheInstructions
-	{
-		public const string DefaultCacheValue = "600"; // 10 minutes
-		public const string ForceRefresh = SimpleCacheHandler.CacheForceRefreshHeaderName;
-		public const string Cache5Minutes = SimpleCacheHandler.CacheTimeToLiveHeaderName + ":300";
-		public const string NoCache = SimpleCacheHandler.CacheDisableHeaderName + ":true";
-	}
-
 	public interface ISampleEndpoint
 	{
 		// Default cache is 10 minutes on all methods.
 
 		[Get("/sample")]
-		Task<string> GetSampleDefault(CancellationToken ct, [Header(ForceRefresh)] bool forceRefresh = false);
+		Task<string> GetSampleDefault(CancellationToken ct, [ForceRefresh] bool forceRefresh = false);
 
 		[Get("/sample")]
-		[Headers(Cache5Minutes)] // You can customize the TTL on a per-call basis.
-		Task<string> GetSampleCustomTTL(CancellationToken ct, [Header(ForceRefresh)] bool forceRefresh = false);
+		[TimeToLive(totalMinutes: 5)] // You can customize the TTL on a per-call basis.
+		Task<string> GetSampleCustomTTL(CancellationToken ct, [ForceRefresh] bool forceRefresh = false);
 
 		[Get("/sample")]
-		[Headers(NoCache)] // When you have a default TTL, you can bypass it on a per-call basis.
+		[NoCache] // When you have a default TTL, you can bypass it on a per-call basis.
 		Task<string> GetSampleNoCache(CancellationToken ct);
 	}
 

@@ -96,6 +96,7 @@ private void ConfigureNetworkExceptionHandler(IServiceCollection services)
 The `SimpleCacheHandler` is a `DelegatingHandler` that executes custom caching instructions.
 
 When you use Refit for your endpoints declaration, you can neatly specify caching instructions with attributes.
+Just install the the `MallardMessageHandler.Refit` package to get those Refit-compatible attributes.
 
 - You can specify time-to-live at different levels.
   - On a per-call level (using attributes)
@@ -106,35 +107,22 @@ This can be useful for things like pull-to-refresh.
 This only makes sense when you define default caching globally.
 
 ```csharp
-// (...)
-public static class CacheInstructions
-{
-  public const string DefaultCacheValue = "600"; // 10 minutes
-  public const string ForceRefresh = SimpleCacheHandler.CacheForceRefreshHeaderName;
-  public const string Cache5Minutes = SimpleCacheHandler.CacheTimeToLiveHeaderName + ":300";
-  public const string NoCache = SimpleCacheHandler.CacheDisableHeaderName + ":true";
-}
-
-// (...)
-using static YourNamespace.CacheInstructions;
+using MallardMessageHandlers.SimpleCaching;
 
 public interface ISampleEndpoint
 {
   [Get("/sample")]
-  Task<string> GetSomeInfo([Header(ForceRefresh)] bool forceRefresh = false);
+  Task<string> GetSampleDefault(CancellationToken ct, [ForceRefresh] bool forceRefresh = false);
 
   [Get("/sample")]
-  [Headers(Cache5Minutes)] // You can customize the TTL on a per-call basis.
-  Task<string> GetSomeStuff([Header(ForceRefresh)] bool forceRefresh = false);
+  [TimeToLive(totalMinutes: 5)] // You can customize the TTL on a per-call basis.
+  Task<string> GetSampleCustomTTL(CancellationToken ct, [ForceRefresh] bool forceRefresh = false);
 
   [Get("/sample")]
-  [Headers(NoCache)] // When you have a default TTL, you can bypass it on a per-call basis.
-  Task<string> GetSomeStatus();
+  [NoCache] // When you have a default TTL, you can bypass it on a per-call basis.
+  Task<string> GetSampleNoCache(CancellationToken ct);
 }
 ```
-
-Because header attributes works with `string` constants, we recommend you create a static class to declare your caching instructions.
-> 💡 You can even leverage `using static` to have super concise instructions by not repeating the static class name.
 
 Here's how you can configure a default time-to-live for all calls.
 ```csharp
@@ -143,6 +131,7 @@ serviceCollection
   .ConfigureHttpClient((client) =>
   {
     // You can configure a default time-to-live for all calls.
+    // "600" represents 10 minutes (600 seconds).
     client.DefaultRequestHeaders.Add(SimpleCacheHandler.CacheTimeToLiveHeaderName, "600");
   });
 ```
