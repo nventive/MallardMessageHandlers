@@ -1,4 +1,4 @@
-# MallardMessageHandlers 🦆
+﻿# MallardMessageHandlers 🦆
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg?style=flat-square)](LICENSE) ![Version](https://img.shields.io/nuget/v/MallardMessageHandlers?style=flat-square) ![Downloads](https://img.shields.io/nuget/dt/MallardMessageHandlers?style=flat-square)
 
 `MallardMessageHandlers` offers `DelegatingHandlers` which will be handy in many projects which use the HTTP stack.
@@ -298,6 +298,18 @@ private void ConfigureAuthenticationTokenHandler(IServiceCollection services)
 
   // The AuthenticationTokenHandler must be recreated for all HttpRequests so we add it as transient.
   services.AddTransient<AuthenticationTokenHandler<MyAuthenticationToken>>();
+}
+```
+
+And don't forget to add needed `DelegatingHandler` to your endpoints, it won't be done automatically.
+
+```csharp
+private static IServiceCollection AddMyEndpoint(this IServiceCollection services, IConfiguration configuration)
+{
+	return services
+		.AddEndpoint<IMyEndpoint, MyEndpointMock>(configuration, "MyEndpoint", configure: b => b
+			.AddHttpMessageHandler<AuthenticationTokenHandler<AuthenticationData>>()
+		);
 }
 ```
 
