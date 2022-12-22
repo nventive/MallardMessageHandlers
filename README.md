@@ -301,7 +301,7 @@ private void ConfigureAuthenticationTokenHandler(IServiceCollection services)
 }
 ```
 
-And don't forget to add needed `DelegatingHandler` to your endpoints, it won't be done automatically.
+You will also need to provide a `DelegatingHandler` to your endpoints if you want to handle the access token logic through the `AuthenticationTokenHandler` provided.
 
 ```csharp
 private static IServiceCollection AddMyEndpoint(this IServiceCollection services, IConfiguration configuration)
